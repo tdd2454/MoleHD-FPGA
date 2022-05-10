@@ -163,7 +163,7 @@ void hv_core(hls::stream<DATA> &input_dma,
 #pragma HLS RESOURCE variable = input core = RAM_1P_BRAM
 #pragma HLS ARRAY_PARTITION variable = input complete dim = 1
 
-	static FPGA_DATA lookup_key[NUM_TOKEN];
+	static ap_int<32> lookup_key[NUM_TOKEN];
 	// static ap_int<32> lookup_key[LOOKUP_KEY_LEN];
 #pragma HLS RESOURCE variable = lookup_key core = RAM_1P_BRAM
 #pragma HLS ARRAY_PARTITION variable = lookup_key complete dim = 1
@@ -187,18 +187,18 @@ void hv_core(hls::stream<DATA> &input_dma,
 	cout << "Receive size: " << cur_size << endl;
 	state = 1;
 
-	// load_2d(input_dma, output_dma, lookup_value);
-	// state = 2;
+	load_2d(input_dma, output_dma, lookup_value);
+	state = 2;
 
 	load(input_dma, output_dma, MAX_IN_LEN, input, cur_size, format);
 	cout << "Receive size: " << cur_size << endl;
 	state = 3;
 
-	// encode(input, lookup_key, lookup_value, result_HV, size);	
-	// state = 5;
-	load(input_dma, output_dma, MAX_IN_LEN, input, cur_size, format);
-	cout << "Receive size: " << cur_size << endl;
-	state = 4;
+	// encode(input, lookup_key, lookup_value, result_HV, cur_size);	
+	// state = 4;
+	// load(input_dma, output_dma, MAX_IN_LEN, input, cur_size, format);
+	// cout << "Receive size: " << cur_size << endl;
+	// state = 4;
 
 	return_val(output_dma, result_HV, format);
 	state = 5;
