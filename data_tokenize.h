@@ -7,13 +7,26 @@
 #include <iostream>
 #include <hls_stream.h>
 
+
+typedef ap_axis<32, 0, 0, 0> DATA;
+typedef ap_axis<32, 0, 0, 0> data_t; 
+
+void hv_core(hls::stream<DATA> &input_dma,
+			 hls::stream<DATA> &output_dma,
+			 // DEBUG ONLY
+			 int &state,
+			 int &cur_size);
+
 const int NUM_TOKEN = 48;
 const int CHUNK_NUM = 100;
 const int CHUNK_SIZE = 100;
 const int in_len = 50;
 //int IFM_len;
 
-typedef char FPGA_DATA;
+
+
+
+typedef int FPGA_DATA;
 
 typedef ap_int<8> HV_VEC;
 
@@ -23,7 +36,11 @@ typedef ap_axis<32, 0, 0, 0> HV_DATA_O;
 
 typedef ap_axis<8, 0, 0, 0> HV_DATA_I;
 
-const char lookup_char[NUM_TOKEN] = {'C', 'c', '(', ')', 'O','[', ']', '@', '=', 'H', 'N', '1', '2', '3', '4', 'n', '+', '-', '/', 'F', '5', 'S', 'l', '6', '\\', 'I', '7', '#', 's', 'P', 'o', '8', '9', 'B', '.', 'r', 'A', 'i', 'T', 'e', 't', 'u', 'Z', 'g', '*', 'a', '0', 'M'};
+
+
+// const char lookup_char[NUM_TOKEN] = {'C', 'c', '(', ')', 'O','[', ']', '@', '=', 'H', 'N', '1', '2', '3', '4', 'n', '+', '-', '/', 'F', '5', 'S', 'l', '6', '\\', 'I', '7', '#', 's', 'P', 'o', '8', '9', 'B', '.', 'r', 'A', 'i', 'T', 'e', 't', 'u', 'Z', 'g', '*', 'a', '0', 'M'};
+
+const int lookup_char[NUM_TOKEN] = {67, 99, 40, 41, 79, 91, 93, 64, 61, 72, 78, 49, 50, 51, 52, 110, 43, 45, 47, 70, 53, 83, 108, 54, 92, 73, 55, 35, 115, 80, 111, 56, 57, 66, 46, 114, 65, 105, 84, 101, 116, 117, 90, 103, 42, 97, 48, 77};
 
 const ap_int<8> lookup_HV[CHUNK_NUM][CHUNK_SIZE] = {{1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1,
        0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0,
