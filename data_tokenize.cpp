@@ -79,7 +79,7 @@ void load_2d(hls::stream<DATA> &input_dma, hls::stream<DATA> &output_dma, ap_int
 			data[i][j] = in_val.data;
 
 			// cout << "i " << i << "keep " << in_val.keep << " strb " << in_val.strb << " user " << in_val.user << " dest " << in_val.dest << " id " << in_val.id << " last " << in_val.last << endl;
-			cout << "2d load " << in_val.data << endl;
+			// cout << "2d load " << in_val.data << endl;
 			output_dma.write(in_val);
 			if (in_val.last == 1)
 			{
@@ -89,39 +89,57 @@ void load_2d(hls::stream<DATA> &input_dma, hls::stream<DATA> &output_dma, ap_int
 	}
 }
 
-// void encode(ap_int<32> *input, ap_int<32> lookup_key[NUM_TOKEN], ap_int<32> lookup_value[CHUNK_NUM][CHUNK_SIZE],
-// 		ap_int<32> result_HV[CHUNK_NUM][CHUNK_SIZE], int size){
+void encode(ap_int<32> *input, ap_int<32> lookup_key[NUM_TOKEN], ap_int<32> lookup_value[CHUNK_NUM][CHUNK_SIZE],
+		ap_int<32> result_HV[CHUNK_NUM][CHUNK_SIZE], int size){
+	
+	for(int i=0; i<NUM_TOKEN; i++){
+		cout << lookup_key[i] << ", \t";
+	}
+	cout << endl;
+	for(int i=0; i<size; i++){
+		cout << input[i] << ", \t";
+	}
+	cout << "size " << size << endl;
 
-// 	EN_HV0:for(int i = 0; i < size; i++){
-// 		EN_HV1:for(int j = 0; j < NUM_TOKEN; j++){
-// 			if(input[i] == lookup_key[j]){
-// 				int position = j;
-// 				EN_HV2:for(int k = 0; k < CHUNK_NUM; k++){
-// 	//#pragma HLS PIPELINE II=1
-// 					position = position%CHUNK_NUM;
-// 					EN_HV3:for(int l = 0; l < CHUNK_SIZE; l++){
-// 	// #pragma HLS ARRAY_RESHAPE variable=lookup_value complete dim=2
-//     // #pragma HLS ARRAY_RESHAPE variable=result_HV complete dim=2
-// 						if(lookup_value[position][l] == 1)
-// 							result_HV[k][l] = result_HV[k][l] + 1;
-// 						else
-// 							result_HV[k][l] = result_HV[k][l] - 1;
-// 					}
-// 					position = position+1;
-// 				}
-// 			}
-// 		}
-// 	}
-// }
+	EN_HV0:for(int i = 0; i < size; i++){
+		EN_HV1:for(int j = 0; j < NUM_TOKEN; j++){
+			if(input[i] == lookup_key[j]){
+				int position = j;
+				cout << position << " value input " << input[i] << " value key " << lookup_key[j] << endl;
+				EN_HV2:for(int k = 0; k < CHUNK_NUM; k++){
+	//#pragma HLS PIPELINE II=1
+					position = position%CHUNK_NUM;
+					EN_HV3:for(int l = 0; l < CHUNK_SIZE; l++){
+	// #pragma HLS ARRAY_RESHAPE variable=lookup_value complete dim=2
+    // #pragma HLS ARRAY_RESHAPE variable=result_HV complete dim=2
+						if(lookup_value[position][l] == 1)
+							result_HV[k][l] = result_HV[k][l] + 1;
+						else
+							result_HV[k][l] = result_HV[k][l] - 1;
+					}
+					position = position+1;
+				}
+			}
+		}
+	}
+
+	// for(int i=0; i<CHUNK_NUM; i++){
+	// 	for(int j=0; j<CHUNK_SIZE; j++){
+	// 		cout << result_HV[i][j] << ", \t";
+	// 	}
+	// }
+	// cout << endl;
+	
+}
 
 void return_val (hls::stream<DATA> & output_dma, ap_int<32> data[CHUNK_NUM][CHUNK_SIZE], data_t &format)
 {
 
 	data_t out_val;
 
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < CHUNK_NUM; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < CHUNK_SIZE; j++)
 		{
 			out_val.data = data[i][j];
 			out_val.keep = format.keep;
@@ -130,7 +148,7 @@ void return_val (hls::stream<DATA> & output_dma, ap_int<32> data[CHUNK_NUM][CHUN
 			out_val.id = format.id;
 			out_val.dest = format.dest;
 
-			if ((i == 10 - 1) && (j == 10 - 1))
+			if ((i == CHUNK_NUM - 1) && (j == CHUNK_SIZE - 1))
 			{
 				out_val.last = 1;
 			}
@@ -140,7 +158,7 @@ void return_val (hls::stream<DATA> & output_dma, ap_int<32> data[CHUNK_NUM][CHUN
 			}
 
 			output_dma.write(out_val);
-			cout << " i = " << i << "j = "<< j << "last " << out_val.last << endl;
+			// cout << " i = " << i << "j = "<< j << "last " << out_val.last << endl;
 		}
 	}
 }
@@ -174,32 +192,38 @@ void hv_core(hls::stream<DATA> &input_dma,
 
 	static ap_int<32> result_HV[CHUNK_NUM][CHUNK_SIZE];
 
-	for(int i = 0; i < 10; i++){
-		for(int j = 0; j < 10; j++){
-			result_HV[i][j] = 10*i + j + 3;
-		}
-	}
+	// for(int i = 0; i < 10; i++){
+	// 	for(int j = 0; j < 10; j++){
+	// 		result_HV[i][j] = 10*i + j + 3;
+	// 	}
+	// }
 	state = 0;
 
 	data_t format;
 
+	//Load token characters 
 	load(input_dma, output_dma, NUM_TOKEN, lookup_key, cur_size, format);
 	cout << "Receive size: " << cur_size << endl;
 	state = 1;
-
+	//Load token hypervector value
 	load_2d(input_dma, output_dma, lookup_value);
 	state = 2;
-
+	//Load input module
 	load(input_dma, output_dma, MAX_IN_LEN, input, cur_size, format);
 	cout << "Receive size: " << cur_size << endl;
 	state = 3;
-
-	// encode(input, lookup_key, lookup_value, result_HV, cur_size);	
+	//
+	encode(input, lookup_key, lookup_value, result_HV, cur_size);	
 	// state = 4;
 	// load(input_dma, output_dma, MAX_IN_LEN, input, cur_size, format);
 	// cout << "Receive size: " << cur_size << endl;
 	// state = 4;
-
+	// for(int i = 0; i < CHUNK_NUM; i++){
+	// 	for(int j =0; j < CHUNK_SIZE; j++){
+	// 		cout << result_HV[i][j] << ", \t";
+	// 	}
+	// }
+	cout << endl;
 	return_val(output_dma, result_HV, format);
 	state = 5;
 }
