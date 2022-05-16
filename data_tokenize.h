@@ -5,6 +5,7 @@
 #include <ap_fixed.h>
 #include <ap_axi_sdata.h>
 #include <iostream>
+#include <vector>
 #include <hls_stream.h>
 
 
@@ -13,6 +14,7 @@ typedef ap_axis<32, 0, 0, 0> data_t;
 
 void hv_core(hls::stream<DATA> &input_dma,
 			 hls::stream<DATA> &output_dma,
+                      int run,
 			 // DEBUG ONLY
 			 int &state,
 			 int &cur_size);

@@ -13,9 +13,12 @@ void load(hls::stream<DATA> &input_dma, hls::stream<DATA> &output_dma, int max_l
 	for (; i < max_len; i++)
 	{
 #pragma HLS PIPELINE
+#pragma HLS dependence variable=data intra false
+
 		in_val = input_dma.read();
 		data[i] = in_val.data;
 
+		output_dma.write(in_val);
 		if (in_val.last == 1)
 		{
 			break;
@@ -31,12 +34,14 @@ void load_2d(hls::stream<DATA> &input_dma, hls::stream<DATA> &output_dma, ap_int
 	// KEY0:
 	for (int i = 0; i < CHUNK_NUM; i++)
 	{
-#pragma HLS PIPELINE
 		for (int j = 0; j < CHUNK_SIZE; j++)
 		{
+#pragma HLS PIPELINE II=1
+#pragma HLS dependence variable=data intra false
 			in_val = input_dma.read();
 			data[i][j] = in_val.data;
 
+			output_dma.write(in_val);
 			if (in_val.last == 1)
 			{
 				break;
@@ -48,6 +53,8 @@ void load_2d(hls::stream<DATA> &input_dma, hls::stream<DATA> &output_dma, ap_int
 void encode(ap_int<32> *input, ap_int<32> lookup_key[NUM_TOKEN], ap_int<32> lookup_value[CHUNK_NUM][CHUNK_SIZE],
 			ap_int<32> result_HV[CHUNK_NUM][CHUNK_SIZE], int size)
 {
+#pragma HLS ARRAY_RESHAPE variable=lookup_value complete dim=2
+#pragma HLS ARRAY_RESHAPE variable=result_HV complete dim=2
 	for (int i = 0; i < size; i++)
 	{
 		for (int j = 0; j < NUM_TOKEN; j++)
@@ -56,15 +63,13 @@ void encode(ap_int<32> *input, ap_int<32> lookup_key[NUM_TOKEN], ap_int<32> look
 			{
 				int position = j;
 				// cout << position << " value input " << input[i] << " value key " << lookup_key[j] << endl;
-				for (int k = 0; k < CHUNK_NUM; k++)
+				encode_label0:for (int k = 0; k < CHUNK_NUM; k++)
 				{
 #pragma HLS PIPELINE II=1
 					position = position % CHUNK_NUM;
 
-					for (int l = 0; l < CHUNK_SIZE; l++)
+					encode_label1:for (int l = 0; l < CHUNK_SIZE; l++)
 					{
-#pragma HLS ARRAY_RESHAPE variable=lookup_value complete dim=2
-#pragma HLS ARRAY_RESHAPE variable=result_HV complete dim=2
 						if (lookup_value[position][l] == 1)
 							result_HV[k][l] = result_HV[k][l] + 1;
 						else
@@ -76,6 +81,22 @@ void encode(ap_int<32> *input, ap_int<32> lookup_key[NUM_TOKEN], ap_int<32> look
 		}
 	}
 }
+
+// void assoc_mem(ap_int<32> class_0[CHUNK_NUM][CHUNK_SIZE], ap_int<32> class_1[CHUNK_NUM][CHUNK_SIZE], ap_int<32> data[CHUNK_NUM][CHUNK_SIZE], int num)
+// {
+
+// 	for (int i = 0; i < CHUNK_NUM; i++)
+// 	{
+// #pragma HLS PIPELINE
+// 		for (int j = 0; j < CHUNK_SIZE; j++)
+// 		{
+// 			if (num == 0)
+// 				class_0[i][j] = class_0[i][j] + data[i][j];
+// 			else if (num == 1)
+// 				class_1[i][j] = class_1[i][j] + data[i][j];
+// 		}
+// 	}
+// }
 
 void return_val(hls::stream<DATA> &output_dma, ap_int<32> data[CHUNK_NUM][CHUNK_SIZE], data_t &format)
 {
@@ -135,7 +156,7 @@ void hv_core(hls::stream<DATA> &input_dma,
 
 	static ap_int<32> lookup_value[CHUNK_NUM][CHUNK_SIZE];
 #pragma HLS RESOURCE variable = lookup_value core = RAM_1P_BRAM
-#pragma HLS ARRAY_PARTITION variable = lookup_value complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = lookup_value complete dim = 2
 
 	static ap_int<32> result_HV[CHUNK_NUM][CHUNK_SIZE];
 
@@ -158,19 +179,26 @@ void hv_core(hls::stream<DATA> &input_dma,
 		{
 			for (int j = 0; j < CHUNK_SIZE; j++)
 			{
-				result_HV[i][j] = 0;
+				result_HV[i][j] = 1;
 			}
 		}
 
 		load(input_dma, output_dma, MAX_IN_LEN, input, cur_size, format);
-		cout << "Receive size: " << cur_size << endl;
-		state = 3;
+		// cout << "Receive size: " << cur_size << endl;
+		// state = 3;
 
 		encode(input, lookup_key, lookup_value, result_HV, cur_size);
-
-		cout << endl;
+		// cout << "Print result " << endl;
+		// for (int i = 0; i < CHUNK_NUM; i++)
+		// {
+		// 	for (int j = 0; j < CHUNK_SIZE; j++)
+		// 	{
+		// 		cout << result_HV[i][j] << ", \t";
+		// 	}
+		// }
+		// cout << endl;
 		return_val(output_dma, result_HV, format);
-		state = 5;
+		// state = 5;
 
 		start = start + 1;
 	}
